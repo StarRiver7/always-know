@@ -32,12 +32,23 @@ request.interceptors.response.use(
     }
   },
   error => {
-    if (error.response?.status === 401) {
-      removeToken()
-      router.push('/login')
-      ElMessage.error('登录已过期，请重新登录')
+    if (error.response) {
+      const status = error.response.status
+      const data = error.response.data
+
+      if (status === 401) {
+        removeToken()
+        const message = data?.message || '登录已过期，请重新登录'
+        ElMessage.error(message)
+        setTimeout(() => {
+          router.push('/login')
+        }, 1500)
+      } else {
+        const message = data?.message || error.message || '请求失败'
+        ElMessage.error(message)
+      }
     } else {
-      ElMessage.error(error.message || '请求失败')
+      ElMessage.error(error.message || '网络错误，请检查网络连接')
     }
     return Promise.reject(error)
   }

@@ -32,6 +32,7 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getUser, removeToken } from '@/utils/auth'
+import { logout } from '@/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -44,6 +45,7 @@ const handleLogout = async () => {
     await ElMessageBox.confirm('确定要退出登录吗?', '提示', {
       type: 'warning'
     })
+    await logout()
     removeToken()
     ElMessage.success('退出成功')
     router.push('/login')

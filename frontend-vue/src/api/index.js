@@ -16,6 +16,13 @@ export function register(data) {
   })
 }
 
+export function logout() {
+  return request({
+    url: '/auth/logout',
+    method: 'post'
+  })
+}
+
 export function getDocuments(params) {
   return request({
     url: '/documents',

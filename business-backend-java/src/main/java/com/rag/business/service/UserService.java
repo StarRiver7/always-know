@@ -17,6 +17,7 @@ import java.util.Map;
 public class UserService extends ServiceImpl<UserMapper, User> {
 
     private final JwtUtil jwtUtil;
+    private final TokenService tokenService;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public Map<String, Object> login(String username, String password) {
@@ -29,6 +30,9 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         }
 
         String token = jwtUtil.generateToken(user.getId(), user.getUsername());
+        System.out.println("用户token: " + token);
+
+        tokenService.saveToken(user.getId(), token);
 
         Map<String, Object> result = new HashMap<>();
         result.put("token", token);
