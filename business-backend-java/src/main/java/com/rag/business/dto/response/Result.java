@@ -1,4 +1,4 @@
-package com.rag.business.common;
+package com.rag.business.dto.response;
 
 import lombok.Data;
 
@@ -60,7 +60,28 @@ public class Result<T> implements Serializable {
      * @param data 响应数据
      */
     public static <T> Result<T> success(T data) {
-        return result(200, "success", data);
+        return result(ResultCode.SUCCESS, "success", data);
+    }
+
+    /**
+     * 成功响应（带状态码、消息和数据）
+     *
+     * @param code    状态码
+     * @param message 响应消息
+     * @param data    响应数据
+     */
+    public static <T> Result<T> success(Integer code, String message, T data) {
+        return result(code, message, data);
+    }
+
+    /**
+     * 成功响应（带状态码和消息）
+     *
+     * @param code    状态码
+     * @param message 响应消息
+     */
+    public static <T> Result<T> success(Integer code, String message) {
+        return result(code, message, null);
     }
 
     /**
@@ -70,7 +91,7 @@ public class Result<T> implements Serializable {
      * @param data    响应数据
      */
     public static <T> Result<T> success(String message, T data) {
-        return result(200, message, data);
+        return result(ResultCode.SUCCESS, message, data);
     }
 
     /**
@@ -79,7 +100,7 @@ public class Result<T> implements Serializable {
      * @param message 错误消息
      */
     public static <T> Result<T> error(String message) {
-        return result(500, message, null);
+        return result(ResultCode.INTERNAL_SERVER_ERROR, message, null);
     }
 
     /**
@@ -123,6 +144,6 @@ public class Result<T> implements Serializable {
      * 判断是否成功
      */
     public boolean isSuccess() {
-        return this.code != null && this.code == 200;
+        return this.code != null && this.code.equals(ResultCode.SUCCESS);
     }
 }

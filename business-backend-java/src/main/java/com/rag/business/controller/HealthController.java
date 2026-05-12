@@ -1,6 +1,7 @@
 package com.rag.business.controller;
 
-import com.rag.business.common.Result;
+import com.rag.business.dto.response.Result;
+import com.rag.business.dto.response.ResultCode;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;

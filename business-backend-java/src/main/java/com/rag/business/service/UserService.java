@@ -3,12 +3,15 @@ package com.rag.business.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.rag.business.entity.User;
+import com.rag.business.entity.UserRole;
 import com.rag.business.mapper.UserMapper;
+import com.rag.business.mapper.UserRoleMapper;
 import com.rag.business.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -19,6 +22,8 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     private final JwtUtil jwtUtil;
     private final TokenService tokenService;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
+    private final UserRoleMapper userRoleMapper;
 
     public Map<String, Object> login(String username, String password) {
         User user = this.getOne(new LambdaQueryWrapper<User>()
@@ -47,6 +52,8 @@ public class UserService extends ServiceImpl<UserMapper, User> {
             throw new RuntimeException("用户名已存在");
         }
 
+        LocalDateTime now = LocalDateTime.now();
+
         User user = new User();
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
@@ -54,7 +61,16 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         user.setEmail(email);
         user.setPhone(phone);
         user.setStatus(1);
+        user.setCreateTime(now);
         this.save(user);
+
+        UserRole ur = new UserRole();
+        ur.setUserId(user.getId());
+        ur.setRoleId(2L);
+        ur.setCreateTime(now);
+        ur.setDeleted(0);
+        userRoleMapper.insert(ur);
+
         return user;
     }
 }

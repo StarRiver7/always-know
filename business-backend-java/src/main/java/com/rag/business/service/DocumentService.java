@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,7 +62,7 @@ public class DocumentService extends ServiceImpl<DocumentMapper, Document> {
     public Document uploadDocument(Long userId, String title, MultipartFile file) throws IOException {
         String originalFilename = file.getOriginalFilename();
         String fileExt = originalFilename.substring(originalFilename.lastIndexOf("."));
-        String newFileName = UUID.randomUUID().toString() + fileExt;
+        String newFileName = UUID.randomUUID() + fileExt;
         
         Path uploadDir = getUploadDir();
         Path destPath = uploadDir.resolve(newFileName);
@@ -81,12 +82,14 @@ public class DocumentService extends ServiceImpl<DocumentMapper, Document> {
         document.setFileType(fileExt);
         document.setUserId(userId);
         document.setStatus(0);
+        document.setCreateTime(LocalDateTime.now());
         this.save(document);
 
         DocumentPermission permission = new DocumentPermission();
         permission.setDocumentId(document.getId());
         permission.setUserId(userId);
         permission.setPermissionType(1);
+        permission.setCreateTime(java.time.LocalDateTime.now());
         documentPermissionMapper.insert(permission);
 
         this.processDocumentAsync(document.getId(), absolutePath, originalFilename);

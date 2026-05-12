@@ -1,16 +1,16 @@
 package com.rag.business.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.rag.business.common.Result;
+import com.rag.business.annotation.CurrentUserId;
+import com.rag.business.dto.response.Result;
+import com.rag.business.dto.response.ResultCode;
+import com.rag.business.dto.request.ChatRequest;
 import com.rag.business.entity.Document;
 import com.rag.business.service.DocumentService;
-import jakarta.servlet.http.HttpServletRequest;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -20,44 +20,45 @@ public class DocumentController {
 
     private final DocumentService documentService;
 
+    //  分页查询用户的文档列表
     @GetMapping
     public Result<Page<Document>> listDocuments(
-            HttpServletRequest request,
+            @CurrentUserId Long userId,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
-        Long userId = (Long) request.getAttribute("userId");
         Page<Document> page = documentService.listDocuments(userId, pageNum, pageSize);
         return Result.success(page);
     }
 
+    //  上传文档
     @PostMapping("/upload")
     public Result<Document> uploadDocument(
-            HttpServletRequest request,
+            @CurrentUserId Long userId,
             @RequestParam("title") String title,
             @RequestParam("file") MultipartFile file) {
         try {
-            Long userId = (Long) request.getAttribute("userId");
             Document document = documentService.uploadDocument(userId, title, file);
             return Result.success(document);
         } catch (Exception e) {
-            return Result.error("上传失败: " + e.getMessage());
+            return Result.error(ResultCode.UPLOAD_FAILED, "上传失败: " + e.getMessage());
         }
     }
 
+    //  删除文档
     @DeleteMapping("/{id}")
     public Result<Void> deleteDocument(
-            HttpServletRequest request,
+            @CurrentUserId Long userId,
             @PathVariable Long id) {
-        Long userId = (Long) request.getAttribute("userId");
         documentService.deleteDocument(id, userId);
         return Result.success();
+
     }
 
+    //  ai聊天
     @PostMapping("/chat")
     public Result<Map<String, Object>> chat(
-            HttpServletRequest request,
+            @CurrentUserId Long userId,
             @RequestBody ChatRequest chatRequest) {
-        Long userId = (Long) request.getAttribute("userId");
         Map<String, Object> result = documentService.chat(
                 userId,
                 chatRequest.getQuery(),
@@ -66,9 +67,4 @@ public class DocumentController {
         return Result.success(result);
     }
 
-    @Data
-    public static class ChatRequest {
-        private String query;
-        private List<Long> documentIds;
-    }
 }

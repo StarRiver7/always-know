@@ -21,24 +21,6 @@ public class AiBackendClient {
     @Value("${ai.backend.url}")
     private String aiBackendUrl;
 
-    public Map<String, Object> processDocument(Long documentId, File file, Map<String, Object> metadata) {
-        String url = aiBackendUrl + "/api/v1/documents/process?document_id=" + documentId;
-        
-        try {
-            HttpResponse response = HttpRequest.post(url)
-                    .form("file", file)
-                    .timeout(600000)
-                    .execute();
-            
-            String body = response.body();
-            log.info("AI Backend process response: {}", body);
-            return JSONUtil.toBean(body, Map.class);
-        } catch (Exception e) {
-            log.error("Failed to call AI backend", e);
-            throw new RuntimeException("调用AI后端失败", e);
-        }
-    }
-
     public Map<String, Object> chat(String query, Integer topK, List<Long> documentIds) {
         String url = aiBackendUrl + "/api/v1/chat/query";
         
@@ -55,10 +37,28 @@ public class AiBackendClient {
                     .execute();
             
             String body = response.body();
-            log.info("AI Backend chat response: {}", body);
+            log.info("AI后端chat响应: {}", body);
             return JSONUtil.toBean(body, Map.class);
         } catch (Exception e) {
-            log.error("Failed to call AI backend for chat", e);
+            log.error("调用AI后端失败", e);
+            throw new RuntimeException("调用AI后端失败", e);
+        }
+    }
+
+    public Map<String, Object> processDocument(Long documentId, File file, Map<String, Object> metadata) {
+        String url = aiBackendUrl + "/api/v1/documents/process?document_id=" + documentId;
+
+        try {
+            HttpResponse response = HttpRequest.post(url)
+                    .form("file", file)
+                    .timeout(600000)
+                    .execute();
+
+            String body = response.body();
+            log.info("AI返回结果: {}", body);
+            return JSONUtil.toBean(body, Map.class);
+        } catch (Exception e) {
+            log.error("Ai调用失败", e);
             throw new RuntimeException("调用AI后端失败", e);
         }
     }
@@ -70,9 +70,9 @@ public class AiBackendClient {
             HttpResponse response = HttpRequest.delete(url)
                     .timeout(30000)
                     .execute();
-            log.info("AI Backend delete response: {}", response.body());
+            log.info("AI后端delete响应: {}", response.body());
         } catch (Exception e) {
-            log.error("Failed to call AI backend for delete", e);
+            log.error("调用AI后端失败", e);
         }
     }
 }
