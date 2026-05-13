@@ -2,12 +2,16 @@ package com.rag.business.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.time.LocalDateTime;
 
 @Data
 @TableName("sys_user")
 public class User {
-
     @TableId(type = IdType.AUTO)
     private Long id;
 

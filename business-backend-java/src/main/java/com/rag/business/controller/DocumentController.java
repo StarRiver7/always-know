@@ -2,6 +2,8 @@ package com.rag.business.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rag.business.annotation.CurrentUserId;
+import com.rag.business.annotation.RequireRole;
+import com.rag.business.common.RoleConstants;
 import com.rag.business.dto.response.Result;
 import com.rag.business.dto.response.ResultCode;
 import com.rag.business.dto.request.ChatRequest;
@@ -30,7 +32,10 @@ public class DocumentController {
         return Result.success(page);
     }
 
-    //  上传文档
+    /**
+     * 上传文档（仅管理员）
+     */
+    @RequireRole({RoleConstants.ADMIN, RoleConstants.USER})
     @PostMapping("/upload")
     public Result<Document> uploadDocument(
             @CurrentUserId Long userId,
@@ -45,6 +50,7 @@ public class DocumentController {
     }
 
     //  删除文档
+    @RequireRole({RoleConstants.ADMIN, RoleConstants.USER})
     @DeleteMapping("/{id}")
     public Result<Void> deleteDocument(
             @CurrentUserId Long userId,
@@ -55,6 +61,7 @@ public class DocumentController {
     }
 
     //  ai聊天
+    @RequireRole({RoleConstants.ADMIN, RoleConstants.USER})
     @PostMapping("/chat")
     public Result<Map<String, Object>> chat(
             @CurrentUserId Long userId,

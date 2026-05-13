@@ -60,8 +60,30 @@ public class DocumentService extends ServiceImpl<DocumentMapper, Document> {
     }
 
     public Document uploadDocument(Long userId, String title, MultipartFile file) throws IOException {
+        // 1. 校验文件
+        if (file.isEmpty()) {
+            throw new RuntimeException("文件不能为空");
+        }
+        
         String originalFilename = file.getOriginalFilename();
-        String fileExt = originalFilename.substring(originalFilename.lastIndexOf("."));
+        if (originalFilename == null || originalFilename.trim().isEmpty()) {
+            throw new RuntimeException("文件名不能为空");
+        }
+        
+        // 2. 校验文件类型
+        String fileExt = originalFilename.substring(originalFilename.lastIndexOf(".")).toLowerCase();
+        List<String> allowedExts = List.of(".txt", ".pdf", ".doc", ".docx", ".md", ".csv", ".xlsx");
+        if (!allowedExts.contains(fileExt)) {
+            throw new RuntimeException("不支持的文件类型: " + fileExt + "，仅支持: " + String.join(", ", allowedExts));
+        }
+        
+        // 3. 校验文件大小（100MB）
+        long maxSize = 100 * 1024 * 1024;
+        if (file.getSize() > maxSize) {
+            throw new RuntimeException("文件大小不能超过 100MB");
+        }
+        
+        // 4. 生成新文件名
         String newFileName = UUID.randomUUID() + fileExt;
         
         Path uploadDir = getUploadDir();
@@ -147,16 +169,28 @@ public class DocumentService extends ServiceImpl<DocumentMapper, Document> {
 
     public void deleteDocument(Long documentId, Long userId) {
         Document document = this.getById(documentId);
-        if (document == null || !document.getUserId().equals(userId)) {
+        if (document == null) {
+            throw new RuntimeException("文档不存在");
+        }
+        if (!document.getUserId().equals(userId)) {
             throw new RuntimeException("无权删除此文档");
         }
         
+        // 删除数据库记录
         this.removeById(documentId);
-        aiBackendClient.deleteDocument(documentId);
         
+        // 删除 AI 后端索引
+        try {
+            aiBackendClient.deleteDocument(documentId);
+        } catch (Exception e) {
+            log.error("删除 AI 后端文档索引失败: {}", documentId, e);
+            // 不抛出异常，继续删除本地文件
+        }
+        
+        // 删除本地文件
         File file = new File(document.getFilePath());
-        if (file.exists()) {
-            file.delete();
+        if (file.exists() && !file.delete()) {
+            log.warn("删除本地文件失败: {}", document.getFilePath());
         }
     }
 }

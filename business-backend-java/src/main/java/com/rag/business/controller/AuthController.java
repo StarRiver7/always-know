@@ -1,5 +1,6 @@
 package com.rag.business.controller;
 
+import com.rag.business.annotation.CurrentUserId;
 import com.rag.business.dto.response.Result;
 import com.rag.business.dto.response.ResultCode;
 import com.rag.business.dto.request.LoginRequest;
@@ -7,8 +8,6 @@ import com.rag.business.dto.request.RegisterRequest;
 import com.rag.business.entity.User;
 import com.rag.business.service.TokenService;
 import com.rag.business.service.UserService;
-import com.rag.business.util.JwtUtil;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -22,7 +21,6 @@ public class AuthController {
 
     private final UserService userService;
     private final TokenService tokenService;
-    private final JwtUtil jwtUtil;
 
 
 
@@ -44,14 +42,12 @@ public class AuthController {
         return Result.success(user);
     }
 
+    /**
+     * 用户退出登录
+     */
     @PostMapping("/logout")
-    public Result<?> logout(HttpServletRequest request) {
-        String token = request.getHeader("Authorization");
-        if (token != null && token.startsWith("Bearer ")) {
-            token = token.substring(7);
-            Long userId = jwtUtil.getUserIdFromToken(token);
-            tokenService.removeToken(userId);
-        }
-        return Result.success(ResultCode.SUCCESS);
+    public Result<Void> logout(@CurrentUserId Long userId) {
+        tokenService.removeToken(userId);
+        return Result.success();
     }
 }

@@ -73,4 +73,20 @@ public class UserService extends ServiceImpl<UserMapper, User> {
 
         return user;
     }
+
+    /**
+     * 获取用户信息
+     *
+     * @param userId 用户ID
+     * @return 用户信息
+     */
+    public User getUserInfo(Long userId) {
+        User user = this.getById(userId);
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+        // 不返回密码
+        user.setPassword(null);
+        return user;
+    }
 }
