@@ -21,10 +21,10 @@ public final class RoleConstants {
     /**
      * 管理员角色
      */
-    public static final Long ADMIN = 1L;
+    public static final long ADMIN = 1L;
 
     /**
      * 普通用户角色
      */
-    public static final Long USER = 2L;
+    public static final long USER = 2L;
 }

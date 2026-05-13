@@ -23,7 +23,6 @@ public class AuthController {
     private final TokenService tokenService;
 
 
-
     @PostMapping("/login")
     public Result<Map<String, Object>> login(@Valid @RequestBody LoginRequest request) {
         Map<String, Object> result = userService.login(request.getUsername(), request.getPassword());

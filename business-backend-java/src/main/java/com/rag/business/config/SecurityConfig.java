@@ -13,10 +13,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
@@ -56,8 +52,23 @@ public class SecurityConfig {
                 // 权限不足时的处理
                 .accessDeniedHandler(accessDeniedHandler)
             )
-            
-            // 添加 JWT 认证过滤器（在 UsernamePasswordAuthenticationFilter 之前）
+                //  Spring Security 默认过滤链
+                // 1. WebAsyncManagerIntegrationFilter  ← 异步处理集成
+                // 2. SecurityContextPersistenceFilter  ← 安全上下文持久化
+                // 3. HeaderWriterFilter                ← 头写入过滤器
+                // 4. CorsFilter                        ← 跨域处理跨域处理跨域处理
+                // 5. CsrfFilter                        ← CSRF防护CSRF防护CSRF防护
+                // 6. LogoutFilter                      ← 登出处理登出处理登出处理
+                // 把 JwtAuthenticationFilter            ← 插入到过滤链中，用于处理 JWT 认证
+                // 7. UsernamePasswordAuthenticationFilter      ← 用户名密码认证
+                // 8. DefaultLoginPageGeneratingFilter       ← 登录页面生成过滤器
+                // 9. DefaultLogoutPageGeneratingFilter      ← 登出页面生成过滤器
+                // 10. RequestCacheAwareFilter               ← 请求缓存意识过滤器
+                // 11. SecurityContextHolderAwareRequestFilter  ← 安全上下文感知请求过滤器
+                // 12. AnonymousAuthenticationFilter    ← 匿名认证过滤器
+                // 13. SessionManagementFilter          ← 会话管理过滤器
+                // 14. ExceptionTranslationFilter       ← 异常翻译过滤器
+                // 15. AuthorizationFilter              ← 权限检查
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         
         return http.build();

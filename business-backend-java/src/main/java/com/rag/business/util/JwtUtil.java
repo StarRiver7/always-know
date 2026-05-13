@@ -26,11 +26,13 @@ import java.util.Map;
  */
 @Slf4j
 @Component
+// 会自动生成有参构造函数，用于依赖注入
 @RequiredArgsConstructor
 public class JwtUtil {
 
     private final JwtConfig jwtConfig;
 
+    // 获取签名密钥
     private SecretKey getSigningKey() {
         byte[] keyBytes = jwtConfig.getSecret().getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
@@ -49,6 +51,7 @@ public class JwtUtil {
         claims.put("username", username);
         
         Date now = new Date();
+        //                                          86400000 毫秒 = 1 天
         Date expiryDate = new Date(now.getTime() + jwtConfig.getExpiration());
 
         return Jwts.builder()
@@ -105,7 +108,9 @@ public class JwtUtil {
      */
     public boolean isTokenExpired(String token) {
         try {
+            // 解析token
             Claims claims = parseToken(token);
+            // 获取过期时间并判断是否在当前时间之前
             return claims.getExpiration().before(new Date());
         } catch (ExpiredJwtException e) {
             // Token 已过期

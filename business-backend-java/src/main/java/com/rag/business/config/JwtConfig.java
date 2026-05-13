@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 @Data
 @Component
+// 绑定yml中的jwt配置
 @ConfigurationProperties(prefix = "jwt")
 public class JwtConfig {
     private String secret;
