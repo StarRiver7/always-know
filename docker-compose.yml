@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # Milvus 向量数据库
+  milvus:
+    image: milvusdb/milvus:v2.4.5
+    container_name: milvus
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    volumes:
+      - milvus-data:/var/lib/milvus
+    environment:
+      - MILVUS_LOG_LEVEL=info
+      - ETCD_USE_EMBED=true
+      - COMMON_STORAGETYPE=local
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # MySQL 数据库（可选，用于业务数据）
+  mysql:
+    image: mysql:8.0
+    container_name: rag-mysql
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./business-backend-java/src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    environment:
+      - MYSQL_ROOT_PASSWORD=123456
+      - MYSQL_DATABASE=rag_db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis（可选，用于缓存）
+  redis:
+    image: redis:7-alpine
+    container_name: rag-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  milvus-data:
+  mysql-data:
+  redis-data:

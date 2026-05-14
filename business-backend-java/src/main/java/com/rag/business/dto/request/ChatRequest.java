@@ -31,7 +31,6 @@ public class ChatRequest {
     /**
      * 文档ID列表
      */
-    @NotBlank(message = "文档ID列表不能为空")
-    @Size(min = 1, max = 100, message = "文档ID列表长度必须在1-100之间")
+    @Size(min = 0, max = 100, message = "文档ID列表长度不能超过100")
     private List<Long> documentIds;
 }

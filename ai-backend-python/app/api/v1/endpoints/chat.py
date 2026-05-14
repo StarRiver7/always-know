@@ -24,11 +24,11 @@ class ChatRequest(BaseModel):
 
 class SourceChunk(BaseModel):
     """来源文档块模型"""
-    document_id: int   # 文档ID
-    chunk_id: int      # 块ID
-    content: str       # 内容
-    metadata: dict     # 元数据
-    score: float       # 相似度分数
+    document_id: Optional[int] = None   # 文档ID
+    chunk_id: Optional[int] = None      # 块ID
+    content: str                        # 内容
+    metadata: Optional[dict] = None     # 元数据
+    score: float                        # 相似度分数
 
 
 class ChatResponse(BaseModel):

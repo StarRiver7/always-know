@@ -6,13 +6,14 @@
 
 ## 技术栈
 
-| 组件 | 技术 | 版本要求 |
-|------|------|----------|
-| 框架 | FastAPI | >= 0.104.1 |
-| 向量数据库 | Milvus | >= 2.4.0 |
-| 大语言模型 | 智谱 GLM | - |
-| 嵌入模型 | 智谱 Embedding | - |
-| Python | - | >= 3.10 |
+| 组件     | 技术           | 版本要求       |
+| ------ | ------------ | ---------- |
+| 框架     | FastAPI      | >= 0.104.1 |
+| 向量数据库  | Milvus       | >= 2.4.0   |
+| 大语言模型  | 智谱 GLM       | -          |
+| 嵌入模型   | 智谱 Embedding | -          |
+| AI框架   | LangChain    | >= 0.1.0   |
+| Python | -            | >= 3.10    |
 
 ## 架构设计
 
@@ -34,12 +35,14 @@
           ▼                  ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                     业务服务层                              │
-│  ┌───────────────────┐    ┌───────────────────┐            │
-│  │ DocumentService   │    │ OpenAIService     │            │
-│  │  - 文档处理       │    │  - 嵌入生成       │            │
-│  │  - 知识查询       │    │  - 对话生成       │            │
-│  └───────┬───────────┘    └───────────┬───────┘            │
-└──────────┼─────────────────────────────┼────────────────────┘
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ DocumentService (LangChain)                            ││
+│  │  - RecursiveCharacterTextSplitter (文本分块)           ││
+│  │  - OpenAIEmbeddings (嵌入生成)                        ││
+│  │  - Milvus Vector Store (向量存储)                      ││
+│  │  - ChatOpenAI (对话生成)                              ││
+│  └─────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────┘
            │                             │
            │                             ▼
            │              ┌─────────────────────────┐
@@ -50,12 +53,12 @@
 │                    Milvus 向量数据库                        │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │ Collection: rag_knowledge_base                       │   │
-│  │  - id (主键)                                         │   │
+│  │  - id (主键, auto_id)                                 │   │
 │  │  - document_id (文档ID)                              │   │
 │  │  - chunk_id (块ID)                                   │   │
-│  │  - content (文本内容)                                │   │
-│  │  - embedding (向量嵌入 1024维)                       │   │
-│  │  - metadata (元数据)                                 │   │
+│  │  - page_content (文本内容)                            │   │
+│  │  - embedding (向量嵌入 1024维)                        │   │
+│  │  - metadata (元数据)                                  │   │
 │  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -65,13 +68,22 @@
 #### 文档上传流程
 
 ```
-客户端上传文档 → DocumentAPI → DocumentService → 文本提取 → 文本分块 → 嵌入生成 → Milvus存储
+客户端上传文档 → DocumentAPI → DocumentService
+    → 文本提取 (pdfplumber/python-docx)
+    → 文本分块 (RecursiveCharacterTextSplitter)
+    → 嵌入生成 (OpenAIEmbeddings)
+    → Milvus存储 (LangChain Milvus)
 ```
 
 #### 知识问答流程
 
 ```
-用户提问 → ChatAPI → DocumentService → 嵌入生成 → Milvus检索 → 构建上下文 → LLM生成 → 返回结果
+用户提问 → ChatAPI → DocumentService
+    → 嵌入生成 (OpenAIEmbeddings)
+    → 向量检索 (Milvus similarity search)
+    → 构建上下文 (PromptTemplate)
+    → LLM生成 (ChatOpenAI)
+    → 返回结果
 ```
 
 ## 目录结构
@@ -94,16 +106,13 @@ ai-backend-python/
 │   │   └── config.py             # 配置管理
 │   └── services/                 # 业务服务层
 │       ├── __init__.py
-│       ├── document_service.py   # 文档处理服务
-│       ├── milvus_service.py     # Milvus向量服务
-│       ├── openai_service.py     # 大模型服务
-│       └── thread_pool_service.py # 线程池服务
+│       └── document_service.py   # 文档处理服务 (LangChain)
 ├── test/                         # 测试文件
 │   ├── test_chat.py              # 问答测试
 │   ├── test_milvus.py            # Milvus测试
+│   ├── check_milvus.py           # Milvus检查脚本
 │   └── test_chat.ps1             # PowerShell测试脚本
 ├── .env                          # 环境变量配置
-├── check_milvus.py               # Milvus检查脚本
 ├── main.py                       # 应用入口
 └── requirements.txt              # 依赖列表
 ```
@@ -116,82 +125,86 @@ ai-backend-python/
 
 **主要配置项：**
 
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| APP_NAME | str | RAG AI Backend | 应用名称 |
-| APP_VERSION | str | 1.0.0 | 应用版本 |
-| HOST | str | 0.0.0.0 | 服务地址 |
-| PORT | int | 8000 | 服务端口 |
-| OPENAI_API_KEY | str | - | 智谱API密钥（必填） |
-| OPENAI_API_BASE | str | https://open.bigmodel.cn/api/paas/v4 | API地址 |
-| OPENAI_EMBEDDING_MODEL | str | embedding-2 | 嵌入模型 |
-| OPENAI_CHAT_MODEL | str | glm-5.1 | 对话模型 |
-| MILVUS_HOST | str | localhost | Milvus地址 |
-| MILVUS_PORT | int | 19530 | Milvus端口 |
-| MILVUS_COLLECTION_NAME | str | rag_knowledge_base | 集合名称 |
-| EMBEDDING_DIMENSION | int | 1024 | 向量维度 |
+| 配置项                      | 类型  | 默认值                                    | 说明          |
+| ------------------------ | --- | -------------------------------------- | ----------- |
+| APP\_NAME                | str | RAG AI Backend                         | 应用名称        |
+| APP\_VERSION             | str | 1.0.0                                  | 应用版本        |
+| HOST                     | str | 0.0.0.0                                | 服务地址        |
+| PORT                     | int | 8000                                   | 服务端口        |
+| OPENAI\_API\_KEY         | str | -                                      | 智谱API密钥（必填） |
+| OPENAI\_API\_BASE        | str | <https://open.bigmodel.cn/api/paas/v4> | API地址       |
+| OPENAI\_EMBEDDING\_MODEL | str | embedding-2                            | 嵌入模型        |
+| OPENAI\_CHAT\_MODEL      | str | glm-5.1                                | 对话模型        |
+| MILVUS\_HOST             | str | localhost                              | Milvus地址    |
+| MILVUS\_PORT             | int | 19530                                  | Milvus端口    |
+| MILVUS\_COLLECTION\_NAME | str | rag\_knowledge\_base                   | 集合名称        |
+| EMBEDDING\_DIMENSION     | int | 1024                                   | 向量维度        |
 
-### 2. Milvus服务 (services/milvus_service.py)
+### 2. 文档服务 (services/document\_service.py)
 
-提供向量数据库的连接、数据插入、检索和删除功能。
+基于 LangChain 框架的文档处理服务，提供文档处理和知识查询的核心业务逻辑。
 
-**核心方法：**
+**LangChain 组件：**
 
-| 方法名 | 功能 | 参数 | 返回值 |
-|--------|------|------|--------|
-| init_connection | 初始化Milvus连接 | 无 | None |
-| create_collection_if_not_exists | 创建/加载集合 | 无 | None |
-| insert_vectors | 插入向量数据 | document_id, chunks | None |
-| search_similar | 向量相似度检索 | embedding, top_k, document_ids | List[Dict] |
-| delete_by_document_id | 删除文档向量 | document_id | None |
-
-### 3. OpenAI服务 (services/openai_service.py)
-
-封装大语言模型和嵌入模型的调用。
+| 组件                             | 用途      |
+| ------------------------------ | ------- |
+| RecursiveCharacterTextSplitter | 语义文本分块  |
+| OpenAIEmbeddings               | 文本嵌入生成  |
+| ChatOpenAI                     | 大语言模型对话 |
+| PromptTemplate                 | 提示词模板   |
+| Milvus (langchain-community)   | 向量数据库存储 |
 
 **核心方法：**
 
-| 方法名 | 功能 | 参数 | 返回值 |
-|--------|------|------|--------|
-| get_embeddings | 批量获取文本嵌入 | texts: List[str] | List[List[float]] |
-| get_embedding | 获取单个文本嵌入 | text: str | List[float] |
-| chat_completion | 生成对话响应 | prompt, context | str |
+| 方法名                       | 功能       | 参数                                            | 返回值        |
+| ------------------------- | -------- | --------------------------------------------- | ---------- |
+| extract\_text\_from\_pdf  | PDF文本提取  | file\_bytes                                   | str        |
+| extract\_text\_from\_docx | DOCX文本提取 | file\_bytes                                   | str        |
+| extract\_text\_from\_txt  | TXT文本提取  | file\_bytes                                   | str        |
+| split\_text\_into\_chunks | 文本分块     | text                                          | List\[str] |
+| process\_document         | 处理并存储文档  | document\_id, file\_bytes, filename, metadata | int        |
+| query\_knowledge          | 知识库查询    | query, top\_k, document\_ids                  | Dict       |
 
-### 4. 文档服务 (services/document_service.py)
+**语义分块策略：**
 
-提供文档处理和知识查询的核心业务逻辑。
+```python
+RecursiveCharacterTextSplitter(
+    chunk_size=500,           # 每个块的最大字符数
+    chunk_overlap=50,         # 块之间的重叠字符数
+    separators=[
+        "\n\n",               # 段落分隔
+        "\n",                 # 换行符
+        "。", "！", "？",      # 中文句末标点
+        ".", "!", "?",        # 英文句末标点
+        "；", ";",            # 分号
+        "，", ",",            # 逗号
+        " ",                  # 空格
+        ""                    # 兜底
+    ]
+)
+```
 
-**核心方法：**
-
-| 方法名 | 功能 | 参数 | 返回值 |
-|--------|------|------|--------|
-| extract_text_from_pdf | PDF文本提取 | file_bytes | str |
-| extract_text_from_docx | DOCX文本提取 | file_bytes | str |
-| extract_text_from_txt | TXT文本提取 | file_bytes | str |
-| split_text_into_chunks | 文本分块 | text | List[str] |
-| process_document | 处理并存储文档 | document_id, file_bytes, filename, metadata | int |
-| query_knowledge | 知识库查询 | query, top_k, document_ids | Dict |
-
-### 5. API端点
+### 3. API端点
 
 #### 文档端点 (api/v1/endpoints/document.py)
 
-| 接口 | 方法 | 路径 | 功能 |
-|------|------|------|------|
-| process_document | POST | /api/v1/documents/process | 上传并处理文档 |
-| delete_document | DELETE | /api/v1/documents/{document_id} | 删除文档 |
+| 接口                | 方法     | 路径                               | 功能      |
+| ----------------- | ------ | -------------------------------- | ------- |
+| process\_document | POST   | /api/v1/documents/process        | 上传并处理文档 |
+| delete\_document  | DELETE | /api/v1/documents/{document\_id} | 删除文档    |
 
 #### 问答端点 (api/v1/endpoints/chat.py)
 
-| 接口 | 方法 | 路径 | 功能 |
-|------|------|------|------|
-| chat_query | POST | /api/v1/chat/query | 知识问答 |
+| 接口          | 方法   | 路径                 | 功能   |
+| ----------- | ---- | ------------------ | ---- |
+| chat\_query | POST | /api/v1/chat/query | 知识问答 |
 
 ## API接口详细说明
 
 ### 1. 文档上传接口
 
 **请求：**
+
 ```
 POST /api/v1/documents/process?document_id=1
 Content-Type: multipart/form-data
@@ -202,13 +215,14 @@ metadata: {"key": "value"} (可选)
 
 **请求参数：**
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| document_id | int | 是 | 文档唯一标识 |
-| file | File | 是 | 上传的文件（支持pdf/docx/txt） |
-| metadata | dict | 否 | 文档元数据 |
+| 参数           | 类型   | 必填 | 说明                    |
+| ------------ | ---- | -- | --------------------- |
+| document\_id | int  | 是  | 文档唯一标识                |
+| file         | File | 是  | 上传的文件（支持pdf/docx/txt） |
+| metadata     | dict | 否  | 文档元数据                 |
 
 **成功响应 (200 OK)：**
+
 ```json
 {
     "document_id": 1,
@@ -218,6 +232,7 @@ metadata: {"key": "value"} (可选)
 ```
 
 **失败响应 (500 Internal Server Error)：**
+
 ```json
 {
     "detail": "Unsupported file type: example.png"
@@ -227,17 +242,19 @@ metadata: {"key": "value"} (可选)
 ### 2. 文档删除接口
 
 **请求：**
+
 ```
 DELETE /api/v1/documents/{document_id}
 ```
 
 **路径参数：**
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| document_id | int | 是 | 要删除的文档ID |
+| 参数           | 类型  | 必填 | 说明       |
+| ------------ | --- | -- | -------- |
+| document\_id | int | 是  | 要删除的文档ID |
 
 **成功响应 (200 OK)：**
+
 ```json
 {
     "status": "success",
@@ -248,6 +265,7 @@ DELETE /api/v1/documents/{document_id}
 ### 3. 问答接口
 
 **请求：**
+
 ```
 POST /api/v1/chat/query
 Content-Type: application/json
@@ -261,13 +279,14 @@ Content-Type: application/json
 
 **请求体：**
 
-| 参数 | 类型 | 必填 | 默认值 | 说明 |
-|------|------|------|--------|------|
-| query | str | 是 | - | 用户提问 |
-| top_k | int | 否 | 5 | 返回相似文档数量 |
-| document_ids | List[int] | 否 | None | 指定文档ID过滤 |
+| 参数            | 类型         | 必填 | 默认值  | 说明       |
+| ------------- | ---------- | -- | ---- | -------- |
+| query         | str        | 是  | -    | 用户提问     |
+| top\_k        | int        | 否  | 5    | 返回相似文档数量 |
+| document\_ids | List\[int] | 否  | None | 指定文档ID过滤 |
 
 **成功响应 (200 OK)：**
+
 ```json
 {
     "answer": "RAG（Retrieval-Augmented Generation）是一种结合检索和生成的AI技术...",
@@ -286,11 +305,13 @@ Content-Type: application/json
 ### 4. 健康检查接口
 
 **请求：**
+
 ```
 GET /health
 ```
 
 **成功响应 (200 OK)：**
+
 ```json
 {
     "status": "healthy",
@@ -327,19 +348,35 @@ conda activate rag-env
 pip install -r requirements.txt
 ```
 
+**主要依赖：**
+
+| 依赖包                 | 用途                     |
+| ------------------- | ---------------------- |
+| fastapi             | Web框架                  |
+| uvicorn             | ASGI服务器                |
+| langchain           | LangChain核心库           |
+| langchain-openai    | LangChain OpenAI集成     |
+| langchain-community | LangChain社区集成（Milvus等） |
+| pymilvus            | Milvus客户端              |
+| pdfplumber          | PDF解析                  |
+| python-docx         | DOCX解析                 |
+
 ### 启动服务
 
 **开发模式：**
+
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 **生产模式：**
+
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
 或使用内置启动方式：
+
 ```bash
 python main.py
 ```
@@ -347,11 +384,10 @@ python main.py
 ### 服务启动流程
 
 1. 加载配置（从环境变量/.env）
-2. 初始化Milvus连接
-3. 创建/加载向量集合
-4. 初始化线程池
-5. 启动FastAPI服务
-6. 注册API路由
+2. 初始化 LangChain 组件
+3. 连接 Milvus 向量数据库
+4. 启动 FastAPI 服务
+5. 注册 API 路由
 
 ## 使用示例
 
@@ -404,6 +440,7 @@ curl http://localhost:8000/health
 ### 1. 向量维度不匹配错误
 
 **错误信息：**
+
 ```
 MilvusException: (code=65535, message=the length(X) of float data should divide the dim(Y))
 ```
@@ -411,27 +448,27 @@ MilvusException: (code=65535, message=the length(X) of float data should divide 
 **原因：** 嵌入模型输出的向量维度与Milvus集合配置的维度不一致。
 
 **解决方案：**
+
 1. 使用以下代码确认实际向量维度：
    ```python
-   from app.services.openai_service import openai_service
+   from app.services.document_service import document_service
    import asyncio
-   result = asyncio.run(openai_service.get_embedding("测试"))
+   result = await document_service.embeddings.aembed_query("测试")
    print(f"实际向量维度: {len(result)}")
    ```
 2. 修改 `app/core/config.py` 中的 `EMBEDDING_DIMENSION` 为实际维度
-3. 删除旧的Milvus集合并重启服务：
-   ```bash
-   python -c "from pymilvus import connections, utility; connections.connect('default', host='localhost', port='19530'); utility.drop_collection('rag_knowledge_base')"
-   ```
+3. 重启服务（已配置 `drop_old=True` 会自动重建集合）
 
 ### 2. Milvus连接失败
 
 **错误信息：**
+
 ```
 Failed to connect to Milvus
 ```
 
 **解决方案：**
+
 1. 确认Milvus服务正在运行：
    ```bash
    docker ps | grep milvus
@@ -445,22 +482,46 @@ Failed to connect to Milvus
 ### 3. API密钥无效
 
 **错误信息：**
+
 ```
 Invalid API key
 ```
 
 **解决方案：**
+
 1. 确认 `.env` 文件中的 `OPENAI_API_KEY` 正确设置
 2. 检查API密钥是否过期或额度是否充足
 3. 验证网络是否可以访问智谱API
+
+### 4. 文档上传返回404
+
+**错误信息：**
+
+```
+404 Not Found
+```
+
+**解决方案：**
+检查请求路径是否为 `/api/v1/documents/process`（不是 `/api/v1/documents/documents/process`）
+
+### 5. LangChain 版本兼容性问题
+
+**解决方案：**
+确保安装兼容的依赖版本：
+
+```bash
+pip install langchain>=0.1.0 langchain-openai>=0.0.2 langchain-community>=0.0.10
+```
 
 ## 调试技巧
 
 ### 查看服务日志
 
 服务启动后会输出详细日志，包含：
-- Milvus连接状态
-- 文档处理进度
+
+- 文档处理进度（步骤1-4）
+- 检索到的文档数量和内容预览
+- 发送给LLM的prompt长度
 - API调用日志
 - 错误堆栈信息
 
@@ -473,6 +534,7 @@ python check_milvus.py
 ```
 
 输出示例：
+
 ```
 Collection exists: True
 Collection name: rag_knowledge_base
@@ -492,6 +554,7 @@ Sample data:
 ## 扩展功能
 
 可考虑添加的功能：
+
 - 文档版本管理
 - 查询历史记录
 - 权限控制
@@ -499,6 +562,7 @@ Sample data:
 - 模型切换
 - 性能监控
 - 日志审计
+- 更高级的语义分块（SemanticChunker）
 
 ## 许可证
 

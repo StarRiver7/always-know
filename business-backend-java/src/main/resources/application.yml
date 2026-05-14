@@ -57,6 +57,10 @@ jwt:
 ai:
   backend:
     url: http://localhost:8000
+    timeout:
+      connect: 5000
+      read: 60000
+      write: 60000
 
 thread-pool:
   core-size: 20

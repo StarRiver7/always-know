@@ -22,7 +22,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix="/documents",
     tags=["文档服务"],
     responses={
         400: {"description": "请求参数错误"},
@@ -30,7 +29,7 @@ router = APIRouter(
     }
 )
 
-
+# 文档处理请求模型
 class ProcessDocumentRequest(BaseModel):
     """
     文档处理请求模型
@@ -68,7 +67,7 @@ class DeleteDocumentResponse(BaseModel):
     status: str
     document_id: int
 
-
+# 文档处理接口
 @router.post(
     "/process",
     response_model=ProcessDocumentResponse,
@@ -111,6 +110,7 @@ async def process_document(
         logger.info(f"开始处理文档: document_id={document_id}, filename={file.filename}")
         
         file_bytes = await file.read()
+        # 调用文档服务处理文档
         chunks_processed = await document_service.process_document(
             document_id=document_id,
             file_bytes=file_bytes,
